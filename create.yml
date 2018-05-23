@@ -1,0 +1,128 @@
+---
+# prepare for LXD usage
+- hosts: layer1
+  remote_user: "root"
+  gather_facts: true
+  roles:
+    - role: layer1_prep_lxd
+      tags: [ 'layer1', 'prep_lxd', 'lxd' ]
+      mode: create
+    - role: layer1_start_lxd
+      tags: [ 'layer1', 'start_lxd', 'lxd' ]
+      mode: create
+
+# prepare customer profile and images
+- hosts: layer1
+  remote_user: "{{ lxd_user }}"
+  gather_facts: false
+  roles:
+    - role: layer1_prep_profile
+      tags: [ 'layer1', 'prep_profile', 'lxd' ]
+      mode: create
+    - role: layer1_upload_images
+      tags: [ 'layer1', 'upload_images', 'lxd' ]
+      mode: create
+
+# start layer2 lxc hosts
+- hosts: layer1
+  remote_user: "{{ lxd_user }}"
+  gather_facts: false
+  roles:
+    - role: layer1_starts_layer2
+      tags: [ 'layer1', 'layer2', 'starts_layer2', 'lxd' ]
+      mode: create
+    - role: layer1_map_vmimages_into_kvmcontainers
+      tags: [ 'layer1', 'layer2', 'map_vmimages_into_kvmcontainers', 'lxd' ]
+      mode: create
+
+# booststrap lxc-containers
+- hosts: "lxc-containers"
+  #hosts: "lxc-{{ customer }}-kvmhost lxc-{{ customer }}-director"
+  #remote_user: "{{ lxd_user }}"
+  gather_facts: false
+  roles:
+    - role: layer2_bootstrap_container
+      tags: [ 'layer2', 'bootstrap_containers', 'bootstrap' ]
+      mode: create
+
+# prepare kvm-containers to be a host for VMs
+- hosts: "kvm-containers"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_prep_kvmhost
+      tags: [ 'layer2', 'prep_kvmhost', 'kvm' ]
+      mode: create
+
+# prepare an Undercloud/Director
+- hosts: "{{ customer }}-director"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_prep_director
+      tags: [ 'layer2', 'prep_director', 'director', 'undercloud' ]
+      mode: create
+
+# prepare an RDO-Packstack installation
+- hosts: "layer2"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_prep_packstack
+      tags: [ 'layer2', 'prep_packstack', 'packstack' ]
+      mode: create
+
+# add nfs to controller
+- hosts: "{{ customer }}-controller"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_add_nfs_to_controller
+      tags: [ 'layer2', 'add_nfs_to_controller', 'add_nfs', 'packstack' ]
+      mode: create
+
+# deploy an RDO-Packstack installation
+- hosts: "{{ customer }}-packstack"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_deploy_packstack
+      tags: [ 'layer2', 'deploy_packstack', 'packstack' ]
+      mode: create
+
+# add nfs to computes
+- hosts: "computes"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_add_nfs_to_computes
+      tags: [ 'layer2', 'add_nfs_to_computes', 'add_nfs', 'packstack' ]
+      mode: create
+
+# prep overcloud
+- hosts: "{{ customer }}-packstack"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_prep_overcloud
+      tags: [ 'layer2', 'prep_overcloud', 'overcloud' ]
+      mode: create
+
+# patch netnode
+- hosts: "{{ customer }}-netnode"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_patch_netnode
+      tags: [ 'layer2', 'patch_netnode', 'overcloud' ]
+      mode: create
+
+# additional, random tasks, that will only be excuted if the hosts here are valid
+- hosts: "dummy"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_temp_misc
+      tags: [ 'temp_misc' ]
+      mode: create
+

@@ -1,0 +1,47 @@
+- block:
+
+    - name: test hosts for reachability
+      command: ping -c1 "{{ ansible_host }}"
+      delegate_to: localhost
+      register: reachable
+      ignore_errors: yes
+    
+    - debug: var=reachable
+    
+    - name: stop via ssh if reachable
+      shell: halt
+      ignore_errors: yes
+      delegate_to: "{{ ansible_host }}"
+      when: reachable.rc == 0
+
+    - name: wait 60s
+      wait_for:
+        timeout: 60
+      delegate_to: layer1
+
+    - name: stop layer2 containers
+      lxd_container:
+        name: "{{ inventory_hostname }}"
+        state: stopped
+        force_stop: yes
+        timeout: 300
+      delegate_to: layer1
+
+  when: mode=='stop'
+
+- block:
+
+    - name: start layer2 containers
+      lxd_container:
+        name: "{{ inventory_hostname }}"
+        architecture: x86_64
+        state: started
+      delegate_to: layer1
+
+    - name: wait 60s
+      wait_for:
+        timeout: 60
+      delegate_to: layer1
+
+  when: mode=='start'
+

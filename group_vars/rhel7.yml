@@ -1,0 +1,2 @@
+ostype: rhel7
+package_manager: yum

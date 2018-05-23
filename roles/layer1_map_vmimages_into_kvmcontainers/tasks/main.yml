@@ -1,0 +1,19 @@
+- block:
+    #- name: remap user UID into container to have the images r/w
+    #  shell: 'lxc config set {{ customer }}-kvmhost raw.idmap "both $UID 0"'
+    - name: VM images should be owned by root
+      file:
+        path: "/home/{{ lxd_user }}/vm-images/{{ item.alias }}"
+        owner: root
+        group: root
+      become_user: root
+      become: yes
+      with_items:
+        "{{ public_vm_images }}"
+    - name: map VMs into the container
+      shell: "lxc config device show {{ item[0] }}|grep /home/{{ lxd_user }}/vm-images/{{ item[1].alias }} || lxc config device add {{ item[0] }} {{ item[1].alias }} disk source=/home/{{ lxd_user }}/vm-images/{{ item[1].alias }} path=/var/lib/libvirt/images/{{ item[1].alias }}"
+      with_nested:
+        - "{{ groups['kvm-containers'] }}"
+        - "{{ public_vm_images }}"
+
+  when: mode=='create'

@@ -1,0 +1,136 @@
+- block:
+    # next one is for idempotency
+    #- command: "yum-config-manager --disable centos-qemu-ev"
+    #  ignore_errors: yes
+
+    - name: install (probably far too much) additional software
+      yum:
+        name: "{{ item }}"
+        #disable_gpg_check: yes
+        state: installed
+      with_items:
+        - vim
+        - mc
+        - strace
+        - nmap
+        - mtr
+        - screen
+        - net-tools
+        - redhat-lsb-core
+        - wget
+        - python-netaddr
+        - bash-completion
+        - openssh-clients
+        - openssh-server
+        - lvm2
+        - xorg-x11-xauth
+        - rsync
+        - bind-utils
+        - nc
+        - tcpdump
+        - bridge-utils
+        - yum-utils
+        - audit
+        - lsof
+        - e2fsprogs
+        - sysfsutils
+        - audit
+    - name: install some optional software (that might fail installation because of not available repos)
+      yum:
+        name: "{{ item }}"
+        #disable_gpg_check: yes
+        state: installed
+      with_items:
+        - htop
+      ignore_errors: yes
+
+    - name: add groups if required
+      group:
+        name: "{{ item.0 }}"
+        gid: "{{ item.1 }}"
+        system: yes
+      with_together:
+        - [ 'glance', 'nova', 'cinder']
+        - [ 161, 162, 165 ]
+
+    - name: add users if required
+      user:
+        name: "{{ item.0 }}"
+        comment: "{{ item.1 }}"
+        uid: "{{ item.2 }}"
+        group: "{{ item.3 }}"
+        home: "{{ item.4 }}"
+        system: yes
+        create_home: no
+        shell: /sbin/nologin
+      with_together:
+        - [ 'glance', 'nova', 'cinder']
+        - [ 'OpenStack Glance Daemons', 'OpenStack Nova Daemons', 'OpenStack Cinder Daemons' ]
+        - [ 161, 162, 165 ]
+        - [ 161, 162, 165 ]
+        - [ '/var/lib/glance', '/var/lib/nova', '/var/lib/cinder' ]
+
+    - debug: msg="### Step 0 - Prerequisites"
+    - name: disable firewalld and NetworkManager
+      service:
+        name: "{{ item }}"
+        enabled: no
+        state: stopped
+      ignore_errors: yes
+      with_items:
+        - firewalld
+        - NetworkManager
+    - name: enable network
+      service:
+        name: network
+        enabled: yes
+        state: started
+    - name: add some devices, if they are not there (see devices in config)
+      shell: |
+        for n in {0..20}; do
+          [ -a /dev/loop$n ] || mknod /dev/loop$n b 7 $n
+        done
+      when: inventory_hostname == "{{ customer }}-packstack"
+
+    - debug: msg="### Step 1 - Software repositories"
+    - name: install rdo-release repo
+      shell: "yum install -y https://rdoproject.org/repos/rdo-release.rpm || yum reinstall -y https://rdoproject.org/repos/rdo-release.rpm"
+      when: repo_overwrite is not defined
+    - name: install openstack repo
+      package:
+        name: centos-release-openstack-queens
+        state: installed
+        use: "{{ package_manager }}"
+      when: repo_overwrite is not defined
+    #- name: disable unwanted repos
+    #  command: "yum-config-manager --disable centos-qemu-ev"
+    #  ignore_errors: yes
+    - name: enable openstack-queens
+      command: "yum-config-manager --enable openstack-queens"
+    - name: upgrade with the new repos
+      package:
+        name: "*"
+        state: latest
+        use: "{{ package_manager }}"
+
+    - debug: msg="### Step 2 - Install Packstack Installer"
+    - name: install Packstack installer
+      package:
+        name: openstack-packstack
+        state: installed
+        use: "{{ package_manager }}"
+      when: inventory_hostname == "{{ customer }}-packstack"
+    - name: pre-install to be patched packages
+      package:
+        name: "{{ item }}"
+        state: installed
+        use: "{{ package_manager }}"
+      with_items:
+        - python-rtslib
+    - name: patch iSCSI target
+      command: sed -i -e "s/modprobe(/#modprobe(/g" /usr/lib/python2.7/site-packages/rtslib/root.py
+    - command: sed -i -e "s/modprobe(/#modprobe(/g" /usr/lib/python2.7/site-packages/rtslib_fb/root.py
+    - name: exec rc.local
+      shell: /etc/rc.local
+
+  when: mode=='create'

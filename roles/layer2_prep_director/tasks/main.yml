@@ -1,0 +1,4 @@
+- block:
+    - name: install libvirt
+      shell: echo "TODO"
+  when: mode=='create'

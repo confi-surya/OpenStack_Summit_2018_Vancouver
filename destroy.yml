@@ -1,0 +1,12 @@
+---
+# destroy layer2 lxc hosts and clean ssh keys up
+- hosts: layer1
+  remote_user: "{{ lxd_user }}"
+  gather_facts: false
+  roles:
+    - role: layer1_starts_layer2
+      tags: [ 'layer1', 'layer2', 'starts_layer2', 'lxd' ]
+      mode: destroy
+    - role: layer1_map_vmimages_into_kvmcontainers
+      tags: [ 'layer1', 'layer2', 'map_vmimages_into_kvmcontainers', 'lxd' ]
+      mode: destroy

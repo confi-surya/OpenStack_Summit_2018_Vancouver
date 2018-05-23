@@ -1,0 +1,26 @@
+- block:
+    - name: copy over prepared (private) lxc images
+      synchronize:
+        src: ../../../binary/images/
+        dest: "./"
+    - name: import prepared lxc images
+      shell: "lxc image show {{ item }} || lxc image import lxc-images/{{ item }}-meta.tar.gz lxc-images/{{ item }}.tar.gz --alias {{ item }}"
+      with_items:
+        "{{ private_lxc_images }}"
+      when: item != ""
+    - name: pre download lxc images
+      command: "lxc image copy {{ item }} local: --copy-aliases"
+      with_items:
+        "{{ public_lxc_images }}"
+      when: item != "" and repo_overwrite is not defined
+    - debug: var=public_vm_images
+    - name: download VM images
+      get_url:
+        url: "{{ item.url }}"
+        dest: "vm-images/{{ item.alias }}"
+        mode: 0644
+      with_items:
+        "{{ public_vm_images }}"
+      when: item != "" and repo_overwrite is not defined
+
+  when: mode=='create'

@@ -1,0 +1,17 @@
+---
+# stop the layer2
+- hosts: "layer2:!controllers"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_start_stop
+      tags: [ 'layer2', 'stop' ]
+      mode: stop
+
+- hosts: "controllers"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_start_stop
+      tags: [ 'layer2', 'stop' ]
+      mode: stop

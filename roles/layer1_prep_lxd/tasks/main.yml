@@ -1,0 +1,105 @@
+- name: check for /etc/fedora-release
+  stat:
+    path: /etc/fedora-release
+  register: fedora_result
+
+- name: check for layer1 host OS is Fedora
+  fail:
+    msg: '############ Attention! Your layer1 host has to be a Fedora host for those playbooks to run successful. #############'
+  when: ansible_os_family != 'RedHat' or not fedora_result.stat.exists
+
+- block:
+    - name: check for lxd already installed
+      dnf:
+        list: lxd
+      register: lxd_installed
+    - debug: var=ansible_os_family
+    - debug: var=lxd_installed
+
+    - block:
+        - name: install copr for lxd
+          command: dnf -y copr enable ganto/lxd
+        - name: install lxd packages
+          dnf:
+            name: "{{ item }}"
+            state: latest
+          with_items:
+            - lxd
+            - lxd-client
+        - name: install other needed software
+          dnf:
+            name: "{{ item }}"
+            state: latest
+          with_items:
+            - rsync
+        - name: set subuid for lxd
+          shell: grep "root:1000000:65536" /etc/subuid || echo "root:1000000:65536" >> /etc/subuid
+        - name: set subgid for lxd
+          shell: grep "root:1000000:65536" /etc/subgid || echo "root:1000000:65536" >> /etc/subgid
+        - name: create default storage as dir
+          command: lxc storage create default dir
+          ignore_errors: yes
+        - name: add default lxc network lxdbr0
+          command: lxc network create lxdbr0
+          ignore_errors: yes
+        - name: config https access to lxd daemon
+          command: lxc config set core.https_address "[::]:{{ lxd_port }}"
+          ignore_errors: yes
+        - name: config a password for lxd daemon
+          command: "lxc config set core.trust_password {{ lxd_pw }}"
+        - name: accept access to remote lxd daemon from local machine
+          command: "lxc remote add {{ lxd_server }} {{ lxd_server }}:{{ lxd_port }} --accept-certificate --password='{{ lxd_pw }}'"
+          ignore_errors: yes
+          delegate_to: localhost
+        - name: check for firewalld
+          shell: firewall-cmd --state
+          register: firewalld
+          ignore_errors: yes
+        - debug: var=firewalld
+        - debug: msg="No firewalld running, please add access to port {{ lxd_port }} on your own."
+          when: firewalld.rc != 0
+        - name: add firewall rules for lxd daemon access
+          firewalld:
+            port: 8443/tcp
+            permanent: true
+            state: enabled
+          when: firewalld.rc == 0
+      when: ansible_os_family == 'RedHat' and (lxd_installed.results[0] is undefined or lxd_installed.results[0].repo != '@System')
+
+    - name: add user "{{ lxd_user }}"
+      user:
+        name: "{{ lxd_user }}"
+        state: present
+        groups: lxd
+        append: true
+    - name: set authorized key for user copying it from current user
+      authorized_key:
+        user: "{{ lxd_user }}"
+        state: present
+        key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+    - name: allow user root access via sudo
+      lineinfile:
+        path: "/etc/sudoers.d/{{ lxd_user }}"
+        state: present
+        create: yes
+        regexp: '^{{ lxd_user }} ALL='
+        line: '{{ lxd_user }} ALL=(root) NOPASSWD:ALL'
+    - name: allow root user (running lxd daemon) to map users UID into the container
+      shell: grep "root:{{ lxd_user }}:1" /etc/subuid || echo "root:{{ lxd_user }}:1" | sudo tee -a /etc/subuid
+    - name: allow root user (running lxd daemon) to map users GID into the container
+      shell: grep "root:{{ lxd_user }}:1" /etc/subgid || echo "root:{{ lxd_user }}:1" | sudo tee -a /etc/subgid
+
+    # As OVS "circumvents" iptables (it’s a Switch!), RHOSP injects a bridge in the communication.
+    - name: bridges have to respect iptables rules as well
+      lineinfile:
+        path: /etc/sysctl.d/10-bridge-nf-call.conf
+        state: present
+        create: yes
+        regexp: "^{{ item.name }}"
+        line: "{{ item.name }} = {{ item.value }}"
+      with_items:
+        - { name: net.bridge.bridge-nf-call-arptables, value: 1 }
+        - { name: net.bridge.bridge-nf-call-ip6tables, value: 1 }
+        - { name: net.bridge.bridge-nf-call-iptables,  value: 1 }
+
+  when: mode=='create'

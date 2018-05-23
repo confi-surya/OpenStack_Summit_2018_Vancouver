@@ -1,0 +1,2 @@
+ostype: centos7
+package_manager: yum

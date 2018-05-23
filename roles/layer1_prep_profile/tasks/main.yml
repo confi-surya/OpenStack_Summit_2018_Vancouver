@@ -1,0 +1,29 @@
+- block:
+    - name: create lxc default profile for eth0 and rootfs
+      lxd_profile:
+        name: "default"
+        state: present
+        #url: https://"{{ lxd_server }}":8443
+        config: {}
+        description: Default LXD profile
+        devices:
+          eth0:
+            nictype: bridged
+            parent: lxdbr0
+            type: nic
+          rootfs:
+            path: /
+            type: disk
+            pool: default
+
+    - name: create lxc customer profile with security privileges
+      lxd_profile:
+        name: "{{ customer }}"
+        state: present
+        #url: https://"{{ lxd_server }}":8443
+        config:
+          security.privileged: "true"
+        description: RHOSP profile for "{{ customer }}"
+        devices:
+          "{{ devices }}"
+  when: mode=='create'

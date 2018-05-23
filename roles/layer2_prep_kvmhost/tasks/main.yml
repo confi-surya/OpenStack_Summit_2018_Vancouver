@@ -1,0 +1,14 @@
+- block:
+    - name: install libvirt
+      dnf:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+        - libvirt
+        - libvirt-daemon-kvm
+    - name: start libvirtd
+      service:
+        name: libvirtd
+        enabled: yes
+        state: started
+  when: mode=='create'

@@ -1,0 +1,92 @@
+customer: OSSummit
+container_pw: ossummit
+repo_overwrite: http://192.168.101.1/repos/CentOS/7/centos7.repo			# this repo has to be complete for all needed software in all nodes as it replaces all subs and repo installations
+additional_packages:
+  - deltarpm
+#  - epel-release
+private_lxc_images: ""
+public_lxc_images:
+  - "images:{{ packstack_image }}"
+public_vm_images:
+  - url: ftp://distro.ibiblio.org/pub/linux/distributions/damnsmall/current/current.iso
+    alias: dsl-4.4.10.iso
+  - url: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img
+    alias: cirros-0.3.5-x86_64-disk.img
+  - url: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-kernel
+    alias: cirros-0.3.5-x86_64-kernel
+  - url: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-initramfs
+    alias: cirros-0.3.5-x86_64-initramfs
+answer_file: packstack-answers.txt.extended
+
+devices:
+  eth0:
+    nictype: bridged
+    parent: "{{ bridge }}"
+    type: nic
+  eth1:
+    nictype: bridged
+    parent: "{{ bridge }}"
+    type: nic
+  eth2:
+    nictype: bridged
+    parent: "{{ bridge }}"
+    type: nic
+  eth3:
+    nictype: bridged
+    parent: "{{ bridge }}"
+    type: nic
+  kvm:
+    path: /dev/kvm
+    type: unix-char
+    mode: "666"
+  rootfs:
+    path: /
+    type: disk
+    pool: default
+  loop0:
+    path: /dev/loop0
+    type: unix-block
+    major: "7"
+    minor: "0"
+    mode: "644"
+  loop1:
+    path: /dev/loop1
+    type: unix-block
+    major: "7"
+    minor: "1"
+    mode: "644"
+  loop2:
+    path: /dev/loop2
+    type: unix-block
+    major: "7"
+    minor: "2"
+    mode: "644"
+  loop3:
+    path: /dev/loop3
+    type: unix-block
+    major: "7"
+    minor: "3"
+    mode: "644"
+
+# network for provisioning/access
+network: 192.168.101.0
+netmask: 24
+gateway: 192.168.101.1
+dns1: 192.168.101.1
+dns2: 8.8.8.8
+demo_dns: "{{ dns2 }}"
+floating_ips_cidr: "192.168.101.192/27"
+float_pool_start: 192.168.101.194		# don't forget to leave the first IP in range (e.g. 193) for the automatically assigned gateway
+float_pool_end: 192.168.101.222
+
+# hosts for RDO-Packstack
+packstack: 192.168.101.2
+packstack_image: centos/7
+netnode: 192.168.101.101
+netnode_image: "{{ packstack_image }}"
+compute1: 192.168.101.110
+compute1_image: "{{ packstack_image }}"
+compute2: 192.168.101.111
+compute2_image: "{{ packstack_image }}"
+compute3: 192.168.101.112
+compute3_image: "{{ packstack_image }}"

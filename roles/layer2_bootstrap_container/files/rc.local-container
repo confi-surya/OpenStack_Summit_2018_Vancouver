@@ -1,0 +1,66 @@
+#!/bin/bash
+sed -i -e "s/^NAutoVTs=0/#NAutoVTs=0/" /etc/systemd/logind.conf
+sed -i -e "s/^#UseDNS .*/UseDNS no/" /etc/ssh/sshd_config
+
+# allow services to start in containers
+for cfile in `grep "PrivateDevices=true\|PrivateDevices=yes" /usr/lib/systemd/system/*.service 2>/dev/null|cut -d: -f1`; do
+  echo "# patching ${cfile}..."
+  sed -i -e "s/^PrivateDevices=.*/PrivateDevices=false/" $cfile
+done
+
+# make kvm working in privileged containers (see https://bugzilla.redhat.com/show_bug.cgi?id=1431112)
+umount /dev/net/tun
+rm /dev/net/tun
+mknod /dev/net/tun c 10 200
+mknod /dev/kvm c 10 232 -m 666
+mknod /dev/vhost-net c 10 238 -m 600
+[ -e /sys/fs/cgroup/devices/devices.allow ] && echo -e "c 10:232 rwm" > /sys/fs/cgroup/devices/devices.allow
+[ -e /sys/fs/cgroup/devices/devices.allow ] && echo -e "c 10:238 rwm" > /sys/fs/cgroup/devices/devices.allow
+
+# replace selinux tools with dummies
+for what in getsebool:"\$1 --> on" setsebool:"\$1 --> on" setenforce:"" getenforce:"Enforcing"; do
+    binary="`echo $what|cut -d: -f1`"
+    cmd="`echo $what|cut -d: -f2`"
+    if file /sbin/${binary}|grep ELF &>/dev/null; then
+      mv -f /sbin/${binary} /sbin/${binary}.org
+      echo -e '#!/bin/bash\n'"echo \"$cmd\"\nexit 0\n" > /sbin/${binary}
+      chmod 755 /sbin/${binary}
+    fi
+done
+
+# we sometimes have a problem with sysctl and return values so we replace it
+if file /sbin/sysctl|grep ELF &>/dev/null; then
+  mv -f /sbin/sysctl /sbin/sysctl.org
+  echo -e '#!/bin/bash\n/sbin/sysctl.org $@\nexit 0\n' > /sbin/sysctl
+  chmod 755 /sbin/sysctl
+fi
+
+# we sometimes have a problem with modprobe and return values so we replace it
+# to find the modules to load on the host use:  grep /sbin/modprobe /var/log/messages |cut -d\" -f 2|sort|uniq
+if file /sbin/modprobe|grep symbolic &>/dev/null; then
+  mv -f /sbin/modprobe /sbin/modprobe.org
+  cat <<END >/sbin/modprobe
+#!/bin/bash
+[ "\$1" = "--version" ] && /bin/kmod --version && exit 0
+logger "modprobe was called to load kernel module \$@"
+logger "You have to execute \"\$0 \$@\" at your host to have the appropriate functionality in the container."
+exit 0
+END
+  chmod 755 /sbin/modprobe
+fi
+if file /sbin/insmod|grep symbolic &>/dev/null; then
+  mv -f /sbin/insmod /sbin/insmod.org
+  ln -f /sbin/modprobe /sbin/insmod
+fi
+
+# definitely disable auditd
+sed -i -e "s/^Exec/#Exec/g" /usr/lib/systemd/system/auditd.service
+sed -i -e "s/^PIDFile/#PIDFile/g" /usr/lib/systemd/system/auditd.service
+sed -i -e "s/^#ExecStart=.*/ExecStart=\/bin\/true/" /usr/lib/systemd/system/auditd.service
+ln -sf /usr/lib/systemd/system/auditd.service /etc/systemd/system/multi-user.target.wants/auditd.service
+
+# remove some files
+rm /etc/systemd/system/{dbus-org.freedesktop.NetworkManager.service,dbus-org.freedesktop.nm-dispatcher.service}
+rm /etc/systemd/system/multi-user.target.wants/cloud-*
+
+systemctl daemon-reload

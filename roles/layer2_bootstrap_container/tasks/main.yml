@@ -1,0 +1,181 @@
+- block:
+    - name: kill a dhclient that can interfere and remove ifcfg-eth0
+      raw: 'ifdown eth0 && rm /etc/sysconfig/network-scripts/ifcfg-eth0'
+      ignore_errors: yes
+    - name: config eth0
+      raw: 'ip addr add "{{ initip }}/{{ netmask }}" dev eth0'
+      ignore_errors: yes
+    - name: setting eth0 up
+      raw: 'ip link set eth0 up'
+    - name: add route
+      raw: "ip route add default via {{ gateway }}"
+      ignore_errors: yes
+    - name: add dns
+      raw: 'echo -e "nameserver {{ dns1 }}\nnameserver {{ dns2 }}" > /etc/resolv.conf'
+    - name: check for python is installed in rhel7 container
+      raw: rpm -q python
+      register: python_install_check
+      failed_when: python_install_check.rc not in [0, 1]
+      changed_when: false
+      when: ostype == 'rhel7'
+    - name: check for python2 is installed in fedora container
+      raw: rpm -q python2
+      register: python2_install_check
+      failed_when: python2_install_check.rc not in [0, 1]
+      changed_when: false
+      when: ostype == 'fedora'
+    - name: pre-install python in container
+      raw: "{{ package_manager }} -y install python"
+      when: (ostype=='rhel7' and python_install_check.rc == 1) or (ostype=='fedora' and python2_install_check.rc == 1)
+      ignore_errors: yes
+    - name: subscribe
+      redhat_subscription:
+        state: present
+        username: "{{ subscription_user }}"
+        password: "{{ subscription_pw }}"
+        autosubscribe: true
+        #force_register: true
+      when: ostype == 'rhel7' and repo_overwrite is not defined
+    - name: disable all repos, if repo overwrite (with a very weired manual method)
+      shell: mkdir -p /etc/yum.repos.d/.old;cp -a /etc/yum.repos.d/* /etc/yum.repos.d/.old;for n in /etc/yum.repos.d/*; do > $n;done
+      #sed -i -e "s/enabled=1/enabled=0/" /etc/yum.repos.d/*;sed -i -e "s/^\(\[.*\]\)/\1\nenabled=0/" /etc/yum.repos.d/*
+      when: repo_overwrite is defined
+      ignore_errors: yes
+    - name: install repo overwrite
+      get_url:
+        url: "{{ repo_overwrite }}"
+        dest: /etc/yum.repos.d/repo_overwrite.repo
+        mode: 0644
+        force: yes
+      when: repo_overwrite is defined
+    - name: test for additional repo file
+      local_action: stat path=files/{{ ostype }}-additional.repo
+      register: add_repo
+    - name: add additional repo if exists
+      copy:
+        src: ../../../files/{{ ostype }}-additional.repo
+        dest: /etc/yum.repos.d/{{ ostype }}-additional.repo
+        owner: root
+        group: root
+        mode: u=rwx,g=r,o=r
+      when: add_repo.stat.exists
+    - name: disable some repos
+      command: "yum-config-manager --disable {{ item }}"
+      ignore_errors: yes
+      with_items:
+        - rhel-7-server-htb-rpms
+      when: ostype=='rhel7'
+    - name: install python in container
+      raw: "{{ package_manager }} -y install python"
+      when: (ostype=='rhel7' and python_install_check.rc == 1) or (ostype=='fedora' and python2_install_check.rc == 1)
+      ignore_errors: yes
+    - name: install NetworkManager
+      package:
+        name: "{{ item }}"
+        state: installed
+        use: "{{ package_manager }}"
+      with_items:
+        - dbus-python
+        - NetworkManager
+        - libsemanage-python
+        - policycoreutils-python
+    - name: install NetworkManager
+      package:
+        name: "{{ item }}"
+        state: installed
+        use: "{{ package_manager }}"
+      with_items:
+        - NetworkManager-glib
+        - python-gobject
+        - nm-connection-editor
+      when: ostype=='fedora'
+    - name: start NetworkManager
+      service:
+        name: NetworkManager
+        enabled: yes
+        state: started
+    - name: give 5s grace time
+      pause: seconds=5
+    - name: re-create eth0
+      command: "nmcli con add con-name eth0 ifname eth0 type ethernet ip4 {{ initip }}/{{ netmask }} gw4 {{ gateway }} ipv4.dns '{{ dns1 }} {{ dns2 }}'"
+      #nmcli:
+        #conn_name: eth0
+        #ifname: eth0
+        #type: ethernet
+        ##autoconnect: yes
+        #ip4: "{{ initip }}/{{ netmask }}"
+        #gw4: "{{ gateway }}"
+        #dns4: "{{ dns1 }} {{ dns2 }}"
+        #state: present
+    - name: ensure eth0 is up at boot
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth0
+        regexp: "^ONBOOT="
+        line: "ONBOOT=yes"
+    - name: install sshd and some tools
+      package:
+        name: "{{ item }}"
+        state: installed
+        use: "{{ package_manager }}"
+      with_items:
+        - openssh-server
+        - iptables-services
+        - "{% if ostype=='fedora' %} iptables-utils {% else %} iptables {% endif %}"
+        - file
+        - less
+        - net-tools
+    - name: enable sshd
+      service:
+        name: sshd
+        enabled: yes
+    - name: install additional packages (e.g. deltarpm and epel-release)
+      package:
+        name: "{{ item }}"
+        state: installed
+        use: "{{ package_manager }}"
+      with_items:
+        "{{ additional_packages }}"
+    - name: upgrade
+      package:
+        name: "*"
+        state: latest
+        use: "{{ package_manager }}"
+    - name: install rc.local
+      copy:
+        src: ../files/rc.local-container
+        dest: /etc/rc.local
+        owner: root
+        group: root
+        mode: u=rwx,g=rx,o=rx
+    - name: exec rc.local
+      shell: /etc/rc.local
+    - name: Disable empty password login
+      lineinfile: dest=/etc/ssh/sshd_config regexp="^#?PermitEmptyPasswords" line="PermitEmptyPasswords no"
+    - name: Disable password login
+      lineinfile: dest=/etc/ssh/sshd_config regexp="^#?PasswordAuthentication" line="PasswordAuthentication no"
+    - name: set root password
+      shell: echo "{{ container_pw }}"|passwd root --stdin
+    - name: set /root/.ssh/authorized_keys
+      authorized_key:
+        user: root
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+    - name: create /etc/hosts
+      lineinfile:
+        dest: /etc/hosts
+        regexp: '.*{{ item }}$'
+        line: "{{ hostvars[item].ansible_host }} {{item}}"
+        state: present
+      when: hostvars[item].ansible_host is defined
+      with_items: "{{ groups['layer2'] }}"
+    - name: reboot
+      command: /sbin/shutdown -r +1
+  when: mode=='create'
+
+- name: wait 60s for ssh to appear
+  wait_for:
+    port: 22
+    delay: 10
+    timeout: 60
+  when: mode=='create'
+  delegate_to: layer1

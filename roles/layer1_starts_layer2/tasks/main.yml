@@ -1,0 +1,53 @@
+- block:
+    - name: create layer2 containers
+      lxd_container:
+        name: "{{ item }}"
+        architecture: x86_64
+        state: stopped
+        source:
+          type: image
+          mode: local
+          alias: "{{ hostvars[item].image }}"
+        profiles: ["{{ customer }}"]
+        #wait_for_ipv4_addresses: true
+        timeout: 60
+      with_items: "{{ groups['layer2'] }}"
+
+    - name: set extra privileges for lxc containers
+      shell: |
+        lxc config show {{ item }} |
+        sed -e 's/^config:/config:\n  linux.kernel_modules: bridge,br_netfilter,ip_tables,ip6_tables,ip_vs,netlink_diag,nf_nat,overlay,xt_conntrack\n  raw.lxc: |-\n    lxc.aa_profile = unconfined\n    lxc.cgroup.devices.allow = a\n    lxc.mount.auto=proc:rw sys:rw\n    lxc.cap.drop =\n  security.nesting: "true"\n  security.privileged: "true"/' |
+        lxc config edit {{ item }}
+      with_items:
+        - "{{ groups['extrapriv-containers'] }}"
+
+    - name: start layer2 containers
+      lxd_container:
+        name: "{{ item }}"
+        architecture: x86_64
+        state: started
+      with_items: "{{ groups['layer2'] }}"
+
+  when: mode=='create'
+
+- block:
+    - name: remove layer2 containers
+      lxd_container:
+        name: "{{ item }}"
+        architecture: x86_64
+        state: absent
+        timeout: 60
+      with_items: "{{ groups['layer2'] }}"
+      
+    - name: remove ssh host keys
+      known_hosts:
+        name: "{{ hostvars[item].initip }}"
+        state: absent
+      with_items: "{{ groups['lxc-containers'] }}"
+
+    - name: remove ssh host keys from local user
+      shell: mv -f ~/.ssh/known_hosts ~/.ssh/known_hosts.last && grep -v "^{{ hostvars[item].initip }} " ~/.ssh/known_hosts.last > ~/.ssh/known_hosts
+      with_items: "{{ groups['lxc-containers'] }}"
+      delegate_to: localhost
+
+  when: mode=='destroy'

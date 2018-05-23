@@ -1,0 +1,81 @@
+- block:
+    # Put SELinux in permissive mode, logging actions that would be blocked.
+    - name: enforce permissive mode
+      selinux:
+        policy: targeted
+        state: permissive
+
+    - name: start lxd
+      service:
+        name: lxd
+        state: started
+
+    - name: add gateway for customer network
+      command: "ifconfig {{ bridge }}:1 {{ gateway }}/{{ netmask }}"
+      ignore_errors: yes
+
+    # for usage of "!" see BUG https://github.com/ansible/ansible/pull/25891
+    # manual fix: https://github.com/ansible/ansible/pull/25891/files
+    #iptables -t nat -I POSTROUTING -s $NET ! -d $NET -j MASQUERADE
+    - name: masquerade customers network
+      iptables:
+        table: nat
+        action: insert
+        chain: POSTROUTING
+        source: "{{ network }}/{{ netmask }}"
+        destination: "!{{ network }}/{{ netmask }}"
+        jump: MASQUERADE
+        comment: "masquerade network {{ network }}/{{ netmask }} for customer {{ customer }}"
+
+    #iptables -I FORWARD -s $NET -j ACCEPT
+    - name: forward customers network
+      iptables:
+        action: insert
+        chain: FORWARD
+        source: "{{ network }}/{{ netmask }}"
+        jump: ACCEPT
+        comment: "forward network {{ network }}/{{ netmask }} for customer {{ customer }}"
+
+    #iptables -I FORWARD -d $NET -m state --state RELATED,ESTABLISHED -j ACCEPT
+    - name: allow back channel of forwarded connections
+      iptables:
+        action: insert
+        chain: FORWARD
+        destination: "{{ network }}/{{ netmask }}"
+        ctstate: ESTABLISHED,RELATED
+        jump: ACCEPT
+        comment: "allow back channel of forwarded connections"
+
+    #iptables -I FORWARD -i ${BRDIGE}+ -o ${BRDIGE}+ -j ACCEPT
+    - name: allow unlimited communication between the bridge {{ bridge }}
+      iptables:
+        action: insert
+        chain: FORWARD
+        in_interface: "{{ bridge }}+"
+        out_interface: "{{ bridge }}+"
+        jump: ACCEPT
+        comment: "allow back channel of forwarded connections"
+    
+    # for Fedora: modprobe -va nf_conntrack openvswitch ip_vs virtio_console bridge br_netfilter overlay nf_nat xfrm_algo xfrm_user xt_conntrack
+    - name: load needed modules for kvmhost
+      modprobe:
+        name: "{{ item }}"
+        params: -va
+        state: present
+      with_items:
+        - nf_conntrack
+        - openvswitch
+        - ip_vs
+        - virtio_console
+        - bridge
+        - br_netfilter
+        - overlay
+        - nf_nat
+        - xfrm_algo
+        - xfrm_user
+        - xt_conntrack
+      ignore_errors: yes
+
+  when: mode=='create'
+
+

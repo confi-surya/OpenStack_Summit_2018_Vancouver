@@ -1,0 +1,26 @@
+---
+# prepare for LXD usage
+- hosts: layer1
+  remote_user: "root"
+  gather_facts: true
+  roles:
+    - role: layer1_start_lxd
+      tags: [ 'layer1', 'start_lxd', 'lxd' ]
+      mode: create
+
+# start the layer2
+- hosts: "controllers"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_start_stop
+      tags: [ 'layer2', 'start' ]
+      mode: start
+
+- hosts: "layer2:!controllers"
+  remote_user: "root"
+  gather_facts: false
+  roles:
+    - role: layer2_start_stop
+      tags: [ 'layer2', 'start' ]
+      mode: start

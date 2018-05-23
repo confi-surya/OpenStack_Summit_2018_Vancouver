@@ -1,0 +1,7 @@
+lxd_server: myserver					# don't use localhost
+lxd_port: 8443
+lxd_pw: 'somePW'
+lxd_user: lxcuser
+bridge: virbr0
+subscription_user: RedHatSubscriptionUser
+subscription_pw: RedHatSubscriptionPassword

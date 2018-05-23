@@ -1,0 +1,51 @@
+- block:
+
+    - name: install nfs
+      yum:
+        name: nfs-utils
+        state: latest
+
+    - name: enable nfs
+      service:
+        name: "{{ item }}"
+        enabled: yes
+      with_items:
+        - rpcbind
+        - nfs-server
+    
+    - name: install exports
+      copy:
+        src: ../files/exports
+        dest: /etc/exports
+        owner: root
+        group: root
+        mode: u=rwx,g=rx,o=rx
+
+    - name: create directories
+      file:
+        state: directory
+        path: "/srv/{{ item }}-nfs"
+        owner: "{{ item }}"
+        group: "{{ item }}"
+        mode: 0755
+      with_items:
+        - glance
+        - nova
+        - cinder
+
+    - name: restart nfs services
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - rpcbind
+        - nfs-server
+
+    - name: patch iptables rules (in an ugly way, because I am too lazy)
+      shell: |
+        iptables-save|grep "dport 2049 " || iptables -I INPUT -s 192.168.101.0/24 -m state --state NEW -p tcp --dport 2049 -j ACCEPT
+        iptables-save|grep "dport 111 " || iptables -I INPUT -s 192.168.101.0/24 -m state --state NEW -p tcp --dport 111 -j ACCEPT
+        grep "dport 2049" /etc/sysconfig/iptables || sed -i -e "s/^\(-A INPUT -j REJECT .*\)/-A INPUT -s {{ network }}\/{{ netmask }} -m state --state NEW -p tcp --dport 2049 -j ACCEPT\n-A INPUT -s {{ network }}\/{{ netmask }} -m state --state NEW -p tcp --dport 111 -j ACCEPT\n\1/" /etc/sysconfig/iptables
+        restorecon -Rf /srv
+
+  when: mode=='create'

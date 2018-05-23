@@ -1,0 +1,21 @@
+- block:
+
+    - name: add some useful flavors (the lazy way, because of shade lib...)
+      shell: |
+        cd
+        source ~/keystonerc_admin
+        openstack flavor create --ram 1024 --disk 10 --vcpus 1 --id 1.5 m1.normal
+        openstack flavor create --ram 256  --disk 10  --vcpus 1 --id 0.3 m1.milli
+        openstack flavor create --ram 128  --disk 1  --vcpus 1 --id 0.2 m1.micro
+        openstack flavor create --ram 64   --disk 1  --vcpus 1 --id 0.1 m1.nano
+        openstack flavor delete m1.tiny
+        openstack flavor create --ram 512  --disk 10  --vcpus 1 --id 1 m1.tiny
+      ignore_errors: yes
+
+    - name: if we have a demo setup, give it a working DNS
+      shell: |
+        cd
+        source /root/keystonerc_demo || exit 0
+        neutron subnet-update --dns-nameserver "{{ demo_dns }}" private_subnet
+
+  when: mode=='create'

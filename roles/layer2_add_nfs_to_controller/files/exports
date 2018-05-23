@@ -1,0 +1,3 @@
+/srv/nova-nfs *(rw,no_root_squash)
+/srv/cinder-nfs *(rw,no_root_squash)
+/srv/glance-nfs *(rw,no_root_squash)

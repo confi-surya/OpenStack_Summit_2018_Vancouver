@@ -1,0 +1,54 @@
+[layer1]
+layer1               ansible_host="{{ lxd_server }}"
+
+[lxc-containers]
+lxc-OSSummit-packstack   ansible_connection=lxd ansible_host="{{ lxd_server }}":OSSummit-packstack initip="{{ packstack }}"
+lxc-OSSummit-netnode     ansible_connection=lxd ansible_host="{{ lxd_server }}":OSSummit-netnode   initip="{{ netnode }}"
+lxc-OSSummit-compute1    ansible_connection=lxd ansible_host="{{ lxd_server }}":OSSummit-compute1  initip="{{ compute1 }}"
+lxc-OSSummit-compute2    ansible_connection=lxd ansible_host="{{ lxd_server }}":OSSummit-compute2  initip="{{ compute2 }}"
+lxc-OSSummit-compute3    ansible_connection=lxd ansible_host="{{ lxd_server }}":OSSummit-compute3  initip="{{ compute3 }}"
+
+[kvm-containers]
+
+[extrapriv-containers]
+OSSummit-packstack     ansible_host="{{ packstack }}"
+OSSummit-netnode       ansible_host="{{ netnode }}"
+OSSummit-compute1      ansible_host="{{ compute1 }}"
+OSSummit-compute2      ansible_host="{{ compute2 }}"
+OSSummit-compute3      ansible_host="{{ compute3 }}"
+
+[layer2]
+OSSummit-packstack     ansible_host="{{ packstack }}" image="{{ packstack_image }}"
+OSSummit-netnode       ansible_host="{{ netnode }}" image="{{ netnode_image }}"
+OSSummit-compute1      ansible_host="{{ compute1 }}" image="{{ compute1_image }}"
+OSSummit-compute2      ansible_host="{{ compute2 }}" image="{{ compute2_image }}"
+OSSummit-compute3      ansible_host="{{ compute3 }}" image="{{ compute3_image }}"
+
+[controllers]
+OSSummit-packstack     ansible_host="{{ packstack }}"
+
+[computes]
+OSSummit-compute1      ansible_host="{{ compute1 }}"
+OSSummit-compute2      ansible_host="{{ compute2 }}"
+OSSummit-compute3      ansible_host="{{ compute3 }}"
+
+[aliases]
+OSSummit-controller    ansible_host="{{ packstack }}"
+
+[rhel7]
+
+[fedora]
+
+[centos7]
+lxc-OSSummit-packstack
+lxc-OSSummit-packstack
+lxc-OSSummit-netnode
+lxc-OSSummit-compute1
+lxc-OSSummit-compute2
+lxc-OSSummit-compute3
+OSSummit-packstack
+OSSummit-packstack
+OSSummit-netnode
+OSSummit-compute1
+OSSummit-compute2
+OSSummit-compute3

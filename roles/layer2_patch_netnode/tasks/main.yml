@@ -1,0 +1,7 @@
+- block:
+
+    - name: since Liberty the config has changed it's place... but only partly
+      shell: |
+        ln -s openvswitch_agent.ini /etc/neutron/plugins/ml2/ml2_conf.ini && systemctl restart neutron-l3-agent.service
+
+  when: mode=='create'
