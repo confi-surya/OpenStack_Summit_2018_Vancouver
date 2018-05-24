@@ -64,7 +64,7 @@
             permanent: true
             state: enabled
           when: firewalld.rc == 0
-      when: ansible_os_family == 'RedHat' and (lxd_installed.results[0] is undefined or lxd_installed.results[0].repo != '@System')
+      when: ansible_os_family == 'RedHat' and (lxd_installed.results[0] is undefined or lxd_installed.results[0].repo != '@System' or true)
 
     - name: add user "{{ lxd_user }}"
       user:

@@ -7,16 +7,16 @@ additional_packages:
 private_lxc_images: ""
 public_lxc_images:
   - "images:{{ packstack_image }}"
-public_vm_images:
-  - url: ftp://distro.ibiblio.org/pub/linux/distributions/damnsmall/current/current.iso
-    alias: dsl-4.4.10.iso
-  - url: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img
-    alias: cirros-0.3.5-x86_64-disk.img
-  - url: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-kernel
-    alias: cirros-0.3.5-x86_64-kernel
-  - url: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-initramfs
-    alias: cirros-0.3.5-x86_64-initramfs
-answer_file: packstack-answers.txt.extended
+public_vm_images: ""
+#  - url: ftp://distro.ibiblio.org/pub/linux/distributions/damnsmall/current/current.iso
+#    alias: dsl-4.4.10.iso
+#  - url: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img
+#    alias: cirros-0.3.5-x86_64-disk.img
+#  - url: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-kernel
+#    alias: cirros-0.3.5-x86_64-kernel
+#  - url: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-initramfs
+#    alias: cirros-0.3.5-x86_64-initramfs
+answer_file: packstack-answers.txt.minimal
 
 devices:
   eth0:

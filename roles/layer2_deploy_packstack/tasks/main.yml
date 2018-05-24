@@ -23,7 +23,7 @@
       register: packstack_installed
 
     - name: "### Step 3: Run Packstack to install OpenStack"
-      shell: "packstack --answer-file="{{ answer_file }}" &> ~/packstack_install.out"
+      shell: packstack --answer-file="{{ answer_file }}" &> ~/packstack_install.out
       when: packstack_installed.stat.exists == False
     
     - name: set state "packstack already run"
