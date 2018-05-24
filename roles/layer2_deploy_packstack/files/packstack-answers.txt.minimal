@@ -13,7 +13,8 @@ CONFIG_DEFAULT_PASSWORD=
 # The amount of service workers/threads to use for each service.
 # Useful to tweak when you have memory constraints. Defaults to the
 # amount of cores on the system.
-CONFIG_SERVICE_WORKERS=%{::processorcount}
+CONFIG_SERVICE_WORKERS=1
+# was: %{::processorcount}
 
 # Specify 'y' to install MariaDB. ['y', 'n']
 CONFIG_MARIADB_INSTALL=y
@@ -91,14 +92,14 @@ CONFIG_DEBUG_MODE=n
 
 # Server on which to install OpenStack services specific to the
 # controller role (for example, API servers or dashboard).
-CONFIG_CONTROLLER_HOST=192.168.101.2
+CONFIG_CONTROLLER_HOST={{ hostvars[customer+'-controller'].ansible_host }}
 
 # List the servers on which to install the Compute service.
-CONFIG_COMPUTE_HOSTS=192.168.101.110,192.168.101.111
+CONFIG_COMPUTE_HOSTS={{ hostvars[customer+'-controller'].ansible_host }}
 
 # List of servers on which to install the network service such as
 # Compute networking (nova network) or OpenStack Networking (neutron).
-CONFIG_NETWORK_HOSTS=192.168.101.2
+CONFIG_NETWORK_HOSTS={{ hostvars[customer+'-controller'].ansible_host }}
 
 # Specify 'y' if you want to use VMware vCenter as hypervisor and
 # storage; otherwise, specify 'n'. ['y', 'n']
@@ -134,11 +135,11 @@ CONFIG_VCENTER_CLUSTER_NAMES=
 
 # (Unsupported!) Server on which to install OpenStack services
 # specific to storage servers such as Image or Block Storage services.
-CONFIG_STORAGE_HOST=192.168.101.2
+CONFIG_STORAGE_HOST={{ hostvars[customer+'-controller'].ansible_host }}
 
 # (Unsupported!) Server on which to install OpenStack services
 # specific to OpenStack Data Processing (sahara).
-CONFIG_SAHARA_HOST=192.168.101.2
+CONFIG_SAHARA_HOST={{ hostvars[customer+'-controller'].ansible_host }}
 
 # Comma-separated list of URLs for any additional yum repositories,
 # to use for installation.
@@ -271,7 +272,7 @@ CONFIG_SSL_CERT_SUBJECT_MAIL=admin@OSSummit-packstack
 CONFIG_AMQP_BACKEND=rabbitmq
 
 # IP address of the server on which to install the AMQP service.
-CONFIG_AMQP_HOST=192.168.101.2
+CONFIG_AMQP_HOST={{ hostvars[customer+'-controller'].ansible_host }}
 
 # Specify 'y' to enable SSL for the AMQP service. ['y', 'n']
 CONFIG_AMQP_ENABLE_SSL=n
@@ -293,7 +294,7 @@ CONFIG_AMQP_AUTH_PASSWORD=PW_PLACEHOLDER
 # installation was not specified in CONFIG_MARIADB_INSTALL, specify
 # the IP address of an existing database server (a MariaDB cluster can
 # also be specified).
-CONFIG_MARIADB_HOST=192.168.101.2
+CONFIG_MARIADB_HOST={{ hostvars[customer+'-controller'].ansible_host }}
 
 # User name for the MariaDB administrative user.
 CONFIG_MARIADB_USER=root
@@ -341,7 +342,7 @@ CONFIG_KEYSTONE_TOKEN_FORMAT=FERNET
 CONFIG_KEYSTONE_IDENTITY_BACKEND=sql
 
 # URL for the Identity service LDAP backend.
-CONFIG_KEYSTONE_LDAP_URL=ldap://192.168.101.2
+CONFIG_KEYSTONE_LDAP_URL=ldap://{{ hostvars[customer+'-controller'].ansible_host }}
 
 # User DN for the Identity service LDAP backend.  Used to bind to the
 # LDAP server if the LDAP server does not allow anonymous
@@ -565,7 +566,7 @@ CONFIG_CINDER_GLUSTER_MOUNTS=
 
 # A single or comma-separated list of NFS exports to mount. Example:
 # 'ip-address:/export-name'
-CONFIG_CINDER_NFS_MOUNTS=192.168.101.2:/srv/cinder-nfs
+CONFIG_CINDER_NFS_MOUNTS={{ hostvars[customer+'-controller'].ansible_host }}:/srv/cinder-nfs
 
 # Administrative user account name used to access the NetApp storage
 # system or proxy server.
@@ -1207,7 +1208,7 @@ CONFIG_PROVISION_IMAGE_NAME=cirros
 
 # A URL or local file location for an image to download and provision
 # in Glance (defaults to a URL for a recent "cirros" image).
-CONFIG_PROVISION_IMAGE_URL=http://192.168.101.1/isos/cirros-0.3.5-x86_64-disk.img
+CONFIG_PROVISION_IMAGE_URL=http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img
 
 # Format for the demo image (default "qcow2").
 CONFIG_PROVISION_IMAGE_FORMAT=qcow2
@@ -1309,7 +1310,7 @@ CONFIG_CEILOMETER_COORDINATION_BACKEND=redis
 CONFIG_ENABLE_CEILOMETER_MIDDLEWARE=n
 
 # IP address of the server on which to install the Redis server.
-CONFIG_REDIS_HOST=192.168.101.2
+CONFIG_REDIS_HOST={{ hostvars[customer+'-controller'].ansible_host }}
 
 # Port on which the Redis server listens.
 CONFIG_REDIS_PORT=6379

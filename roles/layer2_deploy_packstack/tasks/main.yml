@@ -11,8 +11,8 @@
 
     - name: install answer-file
       template:
-        src: ../files/"{{ answer_file }}"
-        dest: /root/"{{ answer_file }}"
+        src: "../files/{{ answer_file }}"
+        dest: "/root/{{ answer_file }}"
         owner: root
         group: root
         mode: u=rwx,g=rx,o=rx
