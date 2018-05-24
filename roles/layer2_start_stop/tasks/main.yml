@@ -13,6 +13,7 @@
       ignore_errors: yes
       delegate_to: "{{ ansible_host }}"
       when: reachable.rc == 0
+      ignore_errors: yes
 
     - name: wait 60s
       wait_for:
